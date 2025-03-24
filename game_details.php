@@ -10,7 +10,7 @@ if(!isset($_GET['id']) || empty($_GET['id'])) {
 $game_id = $_GET['id'];
 
 // Get game information
-$sql = "SELECT g.*, d.max_points 
+$sql = "SELECT g.*, d.max_points
         FROM Game g
         LEFT JOIN DifficultyLevel d ON g.difficulty_level = d.difficulty_level
         WHERE g.game_id = ?";
@@ -33,10 +33,10 @@ $action = getGameAction($conn, $game_id);
 $items = getGameItems($conn, $game_id);
 
 // Get game sessions
-$sql = "SELECT s.*, p.username 
-        FROM Session s 
+$sql = "SELECT s.*, p.username
+        FROM Session s
         JOIN Player p ON s.player_id = p.player_id
-        WHERE s.game_id = ? 
+        WHERE s.game_id = ?
         ORDER BY s.start_time DESC
         LIMIT 20";
 $stmt = $conn->prepare($sql);
@@ -45,10 +45,10 @@ $stmt->execute();
 $sessions = $stmt->get_result();
 
 // Get player game statistics
-$sql = "SELECT pg.*, p.username 
-        FROM PlayerGame pg 
+$sql = "SELECT pg.*, p.username
+        FROM PlayerGame pg
         JOIN Player p ON pg.player_id = p.player_id
-        WHERE pg.game_id = ? 
+        WHERE pg.game_id = ?
         ORDER BY pg.highest_score DESC";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("i", $game_id);
@@ -121,7 +121,7 @@ $playerGames = $stmt->get_result();
             </nav>
         </div>
     </header>
-    
+
     <main class="container">
         <section class="game-info">
             <h2>Basic Information</h2>
@@ -145,16 +145,14 @@ $playerGames = $stmt->get_result();
                     <strong>Description:</strong> <?php echo $game['game_description']; ?>
                 </div>
             </div>
-            <div class="actions">
-                <a href="games.php?delete_id=<?php echo $game['game_id']; ?>" class="btn delete-btn" onclick="return confirm('Are you sure you want to delete this game? All related data will also be deleted.');">Delete Game</a>
-            </div>
+
         </section>
-        
+
         <section class="game-controls">
             <h2>Game Control Configuration</h2>
             <p><strong>Action ID:</strong> <?php echo $action['action_id']; ?></p>
             <p><strong>Action Description:</strong> <?php echo $action['description']; ?></p>
-            
+
             <div class="controls-grid">
                 <div class="control-item <?php echo $action['allowLeftArrow'] ? 'control-enabled' : 'control-disabled'; ?>">
                     <h3>Left Arrow</h3>
@@ -178,7 +176,7 @@ $playerGames = $stmt->get_result();
                 </div>
             </div>
         </section>
-        
+
         <section class="game-items">
             <h2>Game Items</h2>
             <?php if($items && $items->num_rows > 0): ?>
@@ -198,7 +196,7 @@ $playerGames = $stmt->get_result();
                 <p>No items defined for this game yet</p>
             <?php endif; ?>
         </section>
-        
+
         <section class="player-rankings">
             <h2>Player Rankings</h2>
             <table class="sortable">
@@ -213,10 +211,10 @@ $playerGames = $stmt->get_result();
                     </tr>
                 </thead>
                 <tbody>
-                <?php 
+                <?php
                 $rank = 1;
-                if($playerGames && $playerGames->num_rows > 0): 
-                    while($pg = $playerGames->fetch_assoc()): 
+                if($playerGames && $playerGames->num_rows > 0):
+                    while($pg = $playerGames->fetch_assoc()):
                 ?>
                     <tr>
                         <td><?php echo $rank++; ?></td>
@@ -226,9 +224,9 @@ $playerGames = $stmt->get_result();
                         <td><?php echo $pg['times_played']; ?></td>
                         <td><?php echo $pg['last_played_date']; ?></td>
                     </tr>
-                <?php 
-                    endwhile; 
-                else: 
+                <?php
+                    endwhile;
+                else:
                 ?>
                     <tr>
                         <td colspan="6">No players have played this game yet</td>
@@ -237,7 +235,7 @@ $playerGames = $stmt->get_result();
                 </tbody>
             </table>
         </section>
-        
+
         <section class="recent-sessions">
             <h2>Recent Game Sessions</h2>
             <table class="sortable">
@@ -253,9 +251,9 @@ $playerGames = $stmt->get_result();
                     </tr>
                 </thead>
                 <tbody>
-                <?php 
-                if($sessions && $sessions->num_rows > 0): 
-                    while($session = $sessions->fetch_assoc()): 
+                <?php
+                if($sessions && $sessions->num_rows > 0):
+                    while($session = $sessions->fetch_assoc()):
                 ?>
                     <tr>
                         <td><?php echo $session['session_id']; ?></td>
@@ -266,9 +264,9 @@ $playerGames = $stmt->get_result();
                         <td><?php echo $session['win_lose_status'] ? 'Victory' : 'Defeat'; ?></td>
                         <td><?php echo $session['points_gained']; ?></td>
                     </tr>
-                <?php 
-                    endwhile; 
-                else: 
+                <?php
+                    endwhile;
+                else:
                 ?>
                     <tr>
                         <td colspan="7">No sessions for this game yet</td>
@@ -278,13 +276,13 @@ $playerGames = $stmt->get_result();
             </table>
         </section>
     </main>
-    
+
     <footer>
         <div class="container">
             <p>&copy; <?php echo date('Y'); ?> Tetris Performance Tracking System - CS 5200 Practicum 1</p>
         </div>
     </footer>
-    
+
     <script src="js/main.js"></script>
 </body>
 </html>
