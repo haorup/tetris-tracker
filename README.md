@@ -38,7 +38,7 @@ The database schema consists of the following tables:
 
 2. Create Database:
    - Click on "MySQL Admin" to open phpMyAdmin
-   - Create a new database
+   - Create a new database named `tetris_tracking`
    - Database credentials:
      - Username: root
      - Password: root
