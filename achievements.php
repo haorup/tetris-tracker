@@ -2,18 +2,8 @@
 include 'includes/db_connection.php';
 include 'includes/functions.php';
 
-// Get all achievements
-$sql = "SELECT a.achievement_id, a.achievement_type, a.description, 
-        a.difficulty_level, a.required_points, a.required_playtime,
-        COUNT(pa.player_id) as unlocked_count
-        FROM Achievement a
-        LEFT JOIN PlayerAchievement pa ON a.achievement_id = pa.achievement_id
-        GROUP BY a.achievement_id, a.achievement_type, a.description, a.difficulty_level, a.required_points, a.required_playtime
-        ORDER BY a.difficulty_level, a.achievement_id";
-$achievements = $conn->query($sql);
-
 // Get players with highest achievement progress (includes all players with progress, not just completed ones)
-$sql = "SELECT p.player_id, p.username, 
+$sql = "SELECT p.player_id, p.username,
         COUNT(pa.achievement_id) as achievement_count,
         (COUNT(pa.achievement_id) * 100 / (SELECT COUNT(*) FROM Achievement)) as completion_percentage
         FROM Player p
@@ -48,7 +38,7 @@ $topAchievers = $conn->query($sql);
             </nav>
         </div>
     </header>
-    
+
     <main class="container">
         <section class="top-achievers">
             <h2>Players with Most Achievements</h2>
@@ -81,44 +71,7 @@ $topAchievers = $conn->query($sql);
                 </tbody>
             </table>
         </section>
-        
-        <section class="achievement-list">
-            <h2>All Achievements</h2>
-            <table class="sortable">
-                <thead>
-                    <tr>
-                        <th class="sortable-header">ID</th>
-                        <th class="sortable-header">Type</th>
-                        <th class="sortable-header">Description</th>
-                        <th class="sortable-header">Difficulty</th>
-                        <th class="sortable-header">Required Points</th>
-                        <th class="sortable-header">Required Playtime</th>
-                        <th class="sortable-header">Unlocked By</th>
-                    </tr>
-                </thead>
-                <tbody>
-                <?php
-                if($achievements && $achievements->num_rows > 0) {
-                    while($achievement = $achievements->fetch_assoc()) {
-                        $requiredTimeFormatted = formatTime($achievement['required_playtime']);
-                        echo "<tr>";
-                        echo "<td>{$achievement['achievement_id']}</td>";
-                        echo "<td>{$achievement['achievement_type']}</td>";
-                        echo "<td>{$achievement['description']}</td>";
-                        echo "<td>{$achievement['difficulty_level']}</td>";
-                        echo "<td>{$achievement['required_points']}</td>";
-                        echo "<td>{$requiredTimeFormatted}</td>";
-                        echo "<td>{$achievement['unlocked_count']}</td>";
-                        echo "</tr>";
-                    }
-                } else {
-                    echo "<tr><td colspan='7'>No achievement data found</td></tr>";
-                }
-                ?>
-                </tbody>
-            </table>
-        </section>
-        
+
         <section class="achievement-stats">
             <h2>Achievement Statistics</h2>
             <div class="stats-grid">
@@ -131,57 +84,66 @@ $topAchievers = $conn->query($sql);
                     <h3>Total Achievements</h3>
                     <p class="stat-number"><?php echo $row['total']; ?></p>
                 </div>
-                
+
                 <?php
                 // Get total participated achievements (doesn't require completion, just progress)
                 $result = $conn->query("SELECT COUNT(*) as total FROM PlayerAchievement");
                 $row = $result->fetch_assoc();
                 ?>
                 <div class="stat-card">
-                    <h3>Participated Achievements</h3>
+                    <h3>Gained Achievements</h3>
                     <p class="stat-number"><?php echo $row['total']; ?></p>
-                </div>
-                
-                <?php
-                // Get most difficult achievement to complete
-                $result = $conn->query("SELECT a.description, COUNT(pa.player_id) as unlock_count, a.difficulty_level
-                                      FROM Achievement a
-                                      LEFT JOIN PlayerAchievement pa ON a.achievement_id = pa.achievement_id
-                                      GROUP BY a.achievement_id, a.description, a.difficulty_level
-                                      ORDER BY unlock_count ASC, a.difficulty_level DESC
-                                      LIMIT 1");
-                $row = $result->fetch_assoc();
-                ?>
-                <div class="stat-card">
-                    <h3>Most Difficult Achievement</h3>
-                    <p class="stat-number"><?php echo isset($row['description']) ? $row['description'] : 'N/A'; ?></p>
-                    <p><?php echo isset($row['unlock_count']) ? $row['unlock_count'] . ' participants' : ''; ?></p>
-                </div>
-                
-                <?php
-                // Get average completion rate
-                $result = $conn->query("SELECT AVG(
-                                        CASE WHEN pa.is_completed = 1 THEN 100
-                                        ELSE (pa.current_total_points * 100 / a.required_points) 
-                                        END) as avg_completion
-                                      FROM PlayerAchievement pa
-                                      JOIN Achievement a ON pa.achievement_id = a.achievement_id");
-                $row = $result->fetch_assoc();
-                ?>
-                <div class="stat-card">
-                    <h3>Average Completion Rate</h3>
-                    <p class="stat-number"><?php echo round($row['avg_completion'] ?? 0, 1); ?>%</p>
                 </div>
             </div>
         </section>
+
+        <section class="achievements-per-game">
+            <h2>Achievements Per Game</h2>
+            <table class="sortable">
+                <thead>
+                    <tr>
+                        <th class="sortable-header">Game ID</th>
+                        <th class="sortable-header">Game Description</th>
+                        <th class="sortable-header">Achievement Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php
+                // Get achievements per game with more detailed metrics
+                $gameAchievements = $conn->query("SELECT g.game_id, g.game_description,
+                                        COUNT(DISTINCT pa.achievement_id) as achievement_count,
+                                        COUNT(DISTINCT pa.player_id) as players_count,
+                                        ROUND((SUM(CASE WHEN pa.is_completed = 1 THEN 1 ELSE 0 END) * 100.0 /
+                                              NULLIF(COUNT(pa.achievement_id), 0)), 1) as completion_rate
+                                      FROM Game g
+                                      LEFT JOIN Session s ON g.game_id = s.game_id
+                                      LEFT JOIN PlayerAchievement pa ON s.player_id = pa.player_id
+                                      GROUP BY g.game_id, g.game_description
+                                      ORDER BY achievement_count DESC, completion_rate DESC");
+
+                if($gameAchievements && $gameAchievements->num_rows > 0) {
+                    while($game = $gameAchievements->fetch_assoc()) {
+                        echo "<tr>";
+                        echo "<td>{$game['game_id']}</td>";
+                        echo "<td>{$game['game_description']}</td>";
+                        echo "<td>{$game['achievement_count']}</td>";
+                        echo "</tr>";
+                    }
+                } else {
+                    echo "<tr><td colspan='3'>No achievement data per game found</td></tr>";
+                }
+                ?>
+                </tbody>
+            </table>
+        </section>
     </main>
-    
+
     <footer>
         <div class="container">
         <p>&copy; <?php echo date('Y'); ?> Tetris Performance Tracking System</p>
         </div>
     </footer>
-    
+
     <script src="js/main.js"></script>
 </body>
 </html>

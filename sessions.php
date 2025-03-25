@@ -38,8 +38,8 @@ if(!empty($conditions)) {
 }
 
 // Get game sessions
-$sql = "SELECT s.session_id, p.username, g.game_genre, 
-        s.start_time, s.end_time, s.duration, 
+$sql = "SELECT s.session_id, p.username, g.game_genre,
+        s.start_time, s.end_time, s.duration,
         s.win_lose_status, s.points_gained
         FROM Session s
         JOIN Player p ON s.player_id = p.player_id
@@ -75,18 +75,24 @@ $statsStmt->execute();
 $result = $statsStmt->get_result();
 $totalSessions = $result->fetch_assoc()['total'] ?? 0;
 
-// Get average duration
-$statsQuery = "SELECT AVG(duration) as avg_duration FROM Session s $statsWhere";
+// Get average playtime per player
+$statsQuery = "SELECT AVG(player_total_time) as avg_player_time
+              FROM (
+                  SELECT s.player_id, SUM(s.duration) as player_total_time
+                  FROM Session s
+                  $statsWhere
+                  GROUP BY s.player_id
+              ) as player_times";
 $statsStmt = $conn->prepare($statsQuery);
 if(!empty($params)) {
     $statsStmt->bind_param($types, ...$params);
 }
 $statsStmt->execute();
 $result = $statsStmt->get_result();
-$avgMinutes = round(($result->fetch_assoc()['avg_duration'] ?? 0) / 60, 1);
+$avgMinutes = round(($result->fetch_assoc()['avg_player_time'] ?? 0) / 60, 1);
 
 // Get win rate
-$statsQuery = "SELECT 
+$statsQuery = "SELECT
                SUM(CASE WHEN win_lose_status = TRUE THEN 1 ELSE 0 END) as wins,
                COUNT(*) as total
                FROM Session s $statsWhere";
@@ -134,7 +140,7 @@ $avgPoints = round($result->fetch_assoc()['avg_points'] ?? 0);
             </nav>
         </div>
     </header>
-    
+
     <main class="container">
         <section class="session-filters">
             <h2>Filter Sessions</h2>
@@ -150,7 +156,7 @@ $avgPoints = round($result->fetch_assoc()['avg_points'] ?? 0);
                         <?php endwhile; ?>
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="game_id">Game:</label>
                     <select name="game_id" id="game_id">
@@ -162,7 +168,7 @@ $avgPoints = round($result->fetch_assoc()['avg_points'] ?? 0);
                         <?php endwhile; ?>
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="date_range">Date Range:</label>
                     <select name="date_range" id="date_range">
@@ -172,12 +178,12 @@ $avgPoints = round($result->fetch_assoc()['avg_points'] ?? 0);
                         <option value="90" <?php echo ($dateFilter == '90') ? 'selected' : ''; ?>>Last 90 Days</option>
                     </select>
                 </div>
-                
+
                 <button type="submit">Apply Filters</button>
                 <a href="sessions.php" class="btn">Reset</a>
             </form>
         </section>
-        
+
         <section class="session-stats">
             <h2>Session Statistics</h2>
             <div class="stats-grid">
@@ -185,24 +191,24 @@ $avgPoints = round($result->fetch_assoc()['avg_points'] ?? 0);
                     <h3>Total Sessions</h3>
                     <p class="stat-number"><?php echo $totalSessions; ?></p>
                 </div>
-                
+
                 <div class="stat-card">
-                    <h3>Average Duration</h3>
+                    <h3>Average Playtime Per Player</h3>
                     <p class="stat-number"><?php echo $avgMinutes; ?> minutes</p>
                 </div>
-                
+
                 <div class="stat-card">
                     <h3>Win Rate</h3>
                     <p class="stat-number"><?php echo $winRate; ?>%</p>
                 </div>
-                
+
                 <div class="stat-card">
                     <h3>Average Score</h3>
                     <p class="stat-number"><?php echo $avgPoints; ?></p>
                 </div>
             </div>
         </section>
-        
+
         <section class="session-list">
             <h2>Game Session List</h2>
             <table class="sortable">
@@ -224,7 +230,7 @@ $avgPoints = round($result->fetch_assoc()['avg_points'] ?? 0);
                     while($session = $sessions->fetch_assoc()) {
                         $duration = formatTime($session['duration']);
                         $result = $session['win_lose_status'] ? 'Victory' : 'Defeat';
-                        
+
                         echo "<tr>";
                         echo "<td>{$session['session_id']}</td>";
                         echo "<td>{$session['username']}</td>";
@@ -244,13 +250,13 @@ $avgPoints = round($result->fetch_assoc()['avg_points'] ?? 0);
             </table>
         </section>
     </main>
-    
+
     <footer>
         <div class="container">
         <p>&copy; <?php echo date('Y'); ?> Tetris Performance Tracking System</p>
         </div>
     </footer>
-    
+
     <script src="js/main.js"></script>
 </body>
 </html>
